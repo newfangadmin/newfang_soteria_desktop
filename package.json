@@ -1,5 +1,5 @@
 {
-  "name": "bastion_demo_app_desktop",
+  "name": "newfang_soteria",
   "version": "0.0.1",
   "author": "Mayur Relekar",
   "description": "A dropbox clone demo desktop application to showcase the Newfang Desktop SDK",
@@ -19,8 +19,8 @@
     "postinstall": "npm run lint:fix"
   },
   "build": {
-    "productName": "Bastion",
-    "appId": "io.newfang.bastion",
+    "productName": "Newfang Soteria",
+    "appId": "io.newfang.soteria",
     "directories": {
       "output": "build"
     },
@@ -54,11 +54,15 @@
   },
   "dependencies": {
     "axios": "^0.18.0",
+    "bip39": "^3.0.2",
+    "electron-json-storage": "^4.1.8",
     "element-ui": "^2.9.2",
     "eosjs": "^20.0.0",
+    "ethers": "^4.0.40",
     "file-icon-vectors": "^1.0.0",
     "fs-extra": "^8.1.0",
     "nedb": "^1.8.0",
+    "random-name": "^0.1.2",
     "vue": "^2.5.16",
     "vue-avatar": "^2.1.7",
     "vue-electron": "^1.0.6",

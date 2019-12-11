@@ -1,87 +1,215 @@
 <template>
   <div class="viewContainer loading" v-loading="loading" element-loading-background="rgba(0, 0, 0, 0.8)">
-    <el-row class="loginContainer">
-      <el-col :span="12" :offset="6" class="logoContainer">
-        <img class="logo" src="~@/assets/logo.svg" />
-      </el-col>
-      <el-col :span="6" :offset="9" class="signupBtnContainer">
-        <el-row v-if="!accountLimitReached">New to Bastion?<span class="signupBtn"><el-button @click="handleSignup()" class="secondaryBtn">SignUp</el-button></span></el-row>
-        <el-row v-else>You have reached your 2 user account limit per device.</el-row>
-      </el-col>
-      <el-col :span="6" :offset="9" class="formContainer">
-        <el-form :model="ruleForm" status-icon :rules="rules" ref="ruleForm" class="demo-ruleForm">
-          <el-form-item
-            prop="email"
-            :rules="[
-              { required: true, message: 'Please input email address', trigger: 'blur' },
-              { type: 'email', message: 'Please input correct email address', trigger: ['blur', 'change'] }
-            ]"
-          >
-            <el-input placeholder="Email" v-model="ruleForm.email"></el-input>
-          </el-form-item>
-          <el-form-item prop="pass">
-            <el-input type="password" placeholder="Password" v-model="ruleForm.pass" autocomplete="off"></el-input>
-          </el-form-item>
-          <el-form-item>
-            <div style="float: left;">
-            <el-button @click="handleForgot()" class="secondaryBtn forgotBtn">Forgot Password?</el-button>
-            </div>
-            <div style="float: right;">
-            <el-button @click="resetForm('ruleForm')" class="secondaryBtn">Reset</el-button>
-            <el-button type="primary" @click="submitForm('ruleForm')">Login</el-button>
-            </div>
-          </el-form-item>
-        </el-form>
-      </el-col>
-    </el-row>
+    <div class="signupArea" v-if="newUser">
+      <el-row class="step1" v-if="step==1">
+        <el-col :span="12" :offset="6" class="step1">
+          <h3>Welcome</h3>
+          <img class="logo" src="~@/assets/horizontal_white.png" /><br />
+          <el-button @click="generateMnemonic()" class="mneBtn">Generate Mnemonic</el-button>
+        </el-col>
+      </el-row>
+      <el-row class="mnemonic" v-if="step==2">
+        <el-col :span="12" :offset="6" class="step2">
+          <el-row>
+            <h3>12 word Mnemonic used to generate your wallet address</h3>
+            <el-col :span="3" :offset="1" v-for="(m, index) in mnemonic" :key="index" class="mnes">{{ m }}</el-col><br/>
+            <el-col :span="16" :offset="4" class="step2Btns">
+              <el-button @click="copyMnemonic()">Copy Mnemonic</el-button>
+              <el-button @click="confirmCopy()">Enter Password</el-button><br/>
+              <el-button @click="step=1" class="secondaryBtn">Back</el-button>
+            </el-col>
+          </el-row>
+        </el-col>
+      </el-row>
+    </div>
+    <div class="loginArea" v-else>
+      <el-row class="userCreated" v-if="userJustCreated">
+        <el-col :span="12" :offset="6" class="step3">
+          <h3>Account created successfully.</h3>
+          <el-button @click="gotoLogin()">Proceed to Login</el-button>
+        </el-col>
+      </el-row>
+      <el-row class="userLogin" v-else>
+        <el-col :span="12" :offset="6" class="step3">
+          <h3>Login</h3>
+          <img class="logo" src="~@/assets/horizontal_white.png" /><br />
+          <input type="file" ref="fileSelect" style="display: none" v-on:change="handleKeystoreSelect()">
+          <el-button class="chooseKeystoreBtn" @click="chooseKeystore()">Choose Keystore</el-button>
+        </el-col>
+      </el-row>
+    </div>
   </div>
 </template>
 
 <script>
+import { ethers } from 'ethers'
+const bip39 = require('bip39')
 const { clipboard } = require('electron')
+const fs = require('fs')
+const os = require('os')
+const storage = require('electron-json-storage')
+var random = require('random-name')
 
 export default {
   components: {
   },
   data () {
-    var validatePass = (rule, value, callback) => {
-      if (value === '') {
-        callback(new Error('Please input the password'))
-      } else if (value !== this.ruleForm.pass) {
-        callback(new Error('Two inputs don\'t match!'))
-      } else {
-        callback()
-      }
-    }
     return {
-      ruleForm: {
-        email: '',
-        pass: ''
-      },
-      rules: {
-        pass: [
-          { validator: validatePass, trigger: 'blur' }
-        ]
-      },
       loading: false,
-      accountLimitReached: false
+      newUser: true,
+      mnemonic: [],
+      step: 1,
+      mne: '',
+      userJustCreated: false,
+      keystore: ''
     }
-  },
-  computed: {
   },
   methods: {
-    submitForm (formName) {
-      this.$refs[formName].validate((valid) => {
-        if (valid) {
-          this.loading = true
-          const self = this
-          this.$udb.find({ email: this.ruleForm.email }, function (err, docs) {
+    generateMnemonic () {
+      this.mne = bip39.generateMnemonic()
+      this.mnemonic = this.mne.split(' ')
+      this.step = 2
+    },
+
+    copyMnemonic () {
+      clipboard.writeText(this.mne)
+      this.$message({
+        type: 'success',
+        message: 'Mnemonic Copied to clipboard. Please copy the Mnemonic somewhere safe!',
+        duration: 10000
+      })
+    },
+
+    confirmCopy () {
+      this.$confirm('I confirm that I have copied the Mnemonic somewhere safe. OK to continue or Cancel to copy again.', 'Warning', {
+        confirmButtonText: 'OK',
+        cancelButtonText: 'Cancel',
+        type: 'warning'
+      }).then(() => {
+        this.enterPassword()
+      }).catch(() => {
+        this.$message({
+          type: 'info',
+          message: 'Please copy the Mnemonic somewhere safe!'
+        })
+      })
+    },
+
+    enterPassword () {
+      this.$prompt('Please input a password that will be used to login to Newfang.<br/>Password must have:<ul><li>At least one lower case alphabet</li><li>At least one upper case alphabet</li><li>At least one number</li><li>At least 8 characters long</li>', 'Choose Password', {
+        confirmButtonText: 'Generate Keystore',
+        cancelButtonText: 'Cancel',
+        dangerouslyUseHTMLString: true,
+        inputPattern: /^(((?=.*[a-z])(?=.*[A-Z]))|((?=.*[a-z])(?=.*[0-9]))|((?=.*[A-Z])(?=.*[0-9])))(?=.{8,})/,
+        inputErrorMessage: 'Password not strong enough.',
+        inputType: 'password'
+      }).then(({ value }) => {
+        this.generateKeystore(value)
+      }).catch(() => {
+      })
+    },
+
+    generateKeystore (password) {
+      let mnemonicWallet = ethers.Wallet.fromMnemonic(this.mne)
+
+      let encryptPromise = mnemonicWallet.encrypt(password, (progress) => {
+        console.log('Encrypting: ' + parseInt(progress * 100) + '% complete')
+      })
+
+      const self = this
+      encryptPromise.then(function (json) {
+        const blob = new Blob([json], {type: 'text/plain'})
+        const e = document.createEvent('MouseEvents')
+        let a = document.createElement('a')
+        a.download = 'newfang_keystore.json'
+        a.href = window.URL.createObjectURL(blob)
+        a.dataset.downloadurl = ['text/json', a.download, a.href].join(':')
+        e.initEvent('click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null)
+        a.dispatchEvent(e)
+        self.addUser(password)
+      })
+    },
+
+    addUser (pass) {
+      const self = this
+      var newUser = {
+        firstName: random.first(),
+        lastName: random.last(),
+        pass: pass,
+        addDate: new Date(),
+        storageCap: 1000000000,
+        bandwidthCap: 1000000000,
+        sUsage: 0,
+        bUsage: 0
+      }
+      this.$udb.insert(newUser, function (err, newDoc) {
+        if (!err) {
+          var homeFolder = {
+            name: 'home',
+            uid: newDoc._id,
+            addDate: new Date(),
+            type: 'folder',
+            parentId: 'null'
+          }
+          self.$db.insert(homeFolder, function (err, newDoc1) {
             if (!err) {
-              self.loading = false
-              if (docs.length > 0) {
-                if (docs[0].pass === self.ruleForm.pass) {
+              self.newUser = false
+              self.userJustCreated = true
+            }
+          })
+        }
+      })
+    },
+
+    gotoLogin () {
+      this.userJustCreated = false
+    },
+
+    chooseKeystore () {
+      this.$refs.fileSelect.click()
+    },
+
+    handleKeystoreSelect () {
+      const file = this.$refs.fileSelect.files[0]
+      if (file !== undefined) {
+        fs.readFile(file.path, 'utf-8', (err, data) => {
+          if (err) {
+            alert('An error ocurred reading the file :' + err.message)
+            return
+          }
+          this.keystore = data
+          this.getPassword()
+        })
+      }
+    },
+
+    getPassword () {
+      this.$prompt('Please enter your password', 'Enter Password', {
+        confirmButtonText: 'Confirm',
+        cancelButtonText: 'Cancel',
+        inputType: 'password'
+      }).then(({ value }) => {
+        this.checkPassword(value)
+      }).catch(() => {
+      })
+    },
+
+    checkPassword (value) {
+      const self = this
+      this.$udb.find({pass: value}, function (err, docs) {
+        if (!err) {
+          if (docs.length === 0) {
+            self.$message({
+              type: 'error',
+              message: 'Incorrect password. Please try again.'
+            })
+            self.getPassword()
+          } else {
+            ethers.Wallet.fromEncryptedJson(self.keystore, value).then(function (wallet) {
+              storage.setDataPath(os.tmpdir())
+              storage.set('wallet', wallet, function (err) {
+                if (!err) {
                   localStorage.setItem('uid', docs[0]._id)
-                  localStorage.setItem('convergence', docs[0].convergence)
                   self.$db.find({ uid: docs[0]._id, type: 'folder', parentId: 'null' }, function (err, docs1) {
                     if (!err) {
                       localStorage.setItem('curFolderId', docs1[0]._id)
@@ -90,78 +218,11 @@ export default {
                       self.$router.push({name: 'Home', params: {fid: docs1[0]._id, parentId: 'null'}})
                     }
                   })
-                } else {
-                  self.$message({
-                    type: 'error',
-                    message: 'Invalid Email or Password! Please try again',
-                    duration: 5000
-                  })
-                }
-              } else {
-                self.$message({
-                  type: 'error',
-                  message: 'Invalid Email or Password! Please try again',
-                  duration: 5000
-                })
-              }
-            } else {
-              self.loading = false
-              self.$message({
-                type: 'error',
-                message: err,
-                duration: 5000
-              })
-            }
-          })
-        } else {
-          console.log('error submit!!')
-          return false
-        }
-      })
-    },
-
-    resetForm (formName) {
-      this.$refs[formName].resetFields()
-    },
-
-    handleSignup () {
-      this.$router.push({name: 'Signup'})
-    },
-
-    handleForgot () {
-      this.$prompt('Please enter the Email of the account for which you wish to retrieve your password', 'Forgot Password', {
-        confirmButtonText: 'Get',
-        cancelButtonText: 'Cancel'
-      }).then(({ value }) => {
-        const self = this
-        self.$udb.find({'email': value}, function (err, docs) {
-          if (!err) {
-            if (docs.length === 0) {
-              self.$message({
-                type: 'error',
-                message: 'No account found with this email',
-                duration: 5000
-              })
-            } else {
-              self.$alert('Password for this user is - <strong>' + docs[0].pass + '</strong>', 'Password', {
-                confirmButtonText: 'Copy',
-                dangerouslyUseHTMLString: true,
-                callback: action => {
-                  clipboard.writeText(docs[0].pass)
-                  self.$message({
-                    type: 'success',
-                    message: 'Password copied to clipboard'
-                  })
                 }
               })
-            }
+            })
           }
-        })
-      }).catch(() => {
-        this.$message({
-          type: 'info',
-          message: 'Password retrieval cancelled'
-        })
+        }
       })
     }
   },
@@ -169,8 +230,10 @@ export default {
     const self = this
     this.$udb.find({}, function (err, docs) {
       if (!err) {
-        if (docs.length >= 2) {
-          self.accountLimitReached = true
+        if (docs.length === 0) {
+          self.newUser = true
+        } else {
+          self.newUser = false
         }
       }
     })
@@ -179,34 +242,44 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.viewContainer {
-  height: 100vh;
-  width: 100%;
-  background: #222;
-  display: table;
-}
+  .viewContainer {
+    height: 100vh;
+    width: 100%;
+    background: #222;
+    display: table;
+    color: #f2f2f2;
+  }
 
-.loginContainer {
-  display: table-cell;
-  vertical-align: middle;
-  text-align: center;
-}
+  .loginArea {
+    text-align: center;
+    margin-top: 80px;
+  }
 
-.formContainer {
-  color: #888;
-  margin-top: 20px;
-}
+  .step1, .step2 {
+    text-align: center;
+    margin-top: 80px;
+  }
 
-.signupBtnContainer {
-  color: #888;
-  border: 1px solid #888;
-  border-radius: 6px;
-  margin-top: 20px;
-  padding: 6px;
-}
+  .logo {
+    width: 200px;
+  }
 
-.forgotBtn {
-  padding-left: 0px;
-  padding-right: 0px;
-}
+  .mneBtn, .chooseKeystoreBtn {
+    margin-top: 44px;
+  }
+
+  .step2Btns {
+    margin-top: 40px;
+  }
+
+  .mnes {
+    font-size: 16px;
+    margin-top: 40px;
+    margin-bottom: 8px;
+    text-align: center;
+    border: 1px solid #f2f2f2;
+    border-radius: 6px;
+    padding-top: 1px;
+    padding-bottom: 4px;
+  }
 </style>

@@ -8,7 +8,7 @@
 
 <script>
   export default {
-    name: 'bastion_demo_app_desktop'
+    name: 'newfang_soteria'
   }
 </script>
 

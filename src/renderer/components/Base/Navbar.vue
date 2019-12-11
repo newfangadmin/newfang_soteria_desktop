@@ -49,6 +49,7 @@
 
 <script>
 import Avatar from 'vue-avatar'
+const storage = require('electron-json-storage')
 
 export default {
   components: {
@@ -104,7 +105,11 @@ export default {
     },
 
     logout () {
-      this.$router.push({name: 'Login'})
+      storage.clear((error) => {
+        if (!error) {
+          this.$router.push({name: 'Login'})
+        }
+      })
     }
   },
   mounted () {
