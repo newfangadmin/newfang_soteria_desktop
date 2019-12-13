@@ -13,7 +13,7 @@
           <el-col :span="8" class="infoCards">
             <el-card>
               <div class="cardHeader">Actual Size</div>
-              <div class="cardValue">{{ actualSize }}</div>
+              <div class="cardValue">{{ actualSize + "MB" }}</div>
             </el-card>
           </el-col>
           <el-col :span="8" class="infoCards">
@@ -56,12 +56,14 @@ export default {
   components: {
   },
   data () {
+    const details = this.$attrs.details
+    const size = details.size / (1024 * 1024)
     return {
       loading: false,
-      fileName: '',
+      fileName: details.name,
       addDate: '',
-      actualSize: '',
-      uri: '',
+      actualSize: size.toFixed(2),
+      uri: details.uri,
       storedSize: ''
     }
   },
@@ -73,22 +75,6 @@ export default {
     }
   },
   mounted () {
-    console.log('hi1')
-    const self = this
-    this.$root.$on('showFileDetailsPane', ({id, name, size, uri}) => {
-      console.log('hi2')
-      console.log(id, name, size, uri)
-      this.$db.find({_id: id}, function (err, docs) {
-        if (!err) {
-          // console.log(docs)
-          self.fileName = docs[0].name
-          self.addDate = docs[0].addDate
-          self.actualSize = docs[0].size
-          self.uri = docs[0].uri
-          // console.log(self.fileName)
-        }
-      })
-    })
   }
 }
 </script>

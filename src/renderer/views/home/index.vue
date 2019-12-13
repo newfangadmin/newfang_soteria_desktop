@@ -3,7 +3,7 @@
     <folders />
     <files />
     <transition name="slide">
-      <fdetails v-if="show" class="detailsContainer" />
+      <fdetails v-if="show" :details="details" class="detailsContainer" />
     </transition>
     <div :class="{ overlay: hasOverlay }" @click="closeDetails()"></div>
   </div>
@@ -25,7 +25,8 @@ export default {
       curFolderName: '',
       curFolderId: '',
       show: false,
-      hasOverlay: false
+      hasOverlay: false,
+      details: {}
     }
   },
   computed: {
@@ -40,6 +41,7 @@ export default {
     this.$root.$on('showFileDetailsPane', (obj) => {
       this.show = true
       this.hasOverlay = true
+      this.details = { ...obj }
     })
 
     this.$root.$on('closeDetailsPane', () => {
