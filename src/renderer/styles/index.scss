@@ -143,3 +143,16 @@ h1 {
   transition: none !important;
   transform: none !important;
 }
+
+.slide-leave-active,
+.slide-enter-active {
+  transition: 0.5s ease-in-out;
+}
+
+.slide-enter, .slide-leave-to {
+  margin-right: -30%;
+}
+
+.slide-enter-to, .slide-leave {
+  margin-right: 0;
+}

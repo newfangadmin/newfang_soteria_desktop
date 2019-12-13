@@ -189,6 +189,7 @@ export default {
         cancelButtonText: 'Cancel',
         inputType: 'password'
       }).then(({ value }) => {
+        this.loading = true
         this.checkPassword(value)
       }).catch(() => {
       })
@@ -212,6 +213,7 @@ export default {
                   localStorage.setItem('uid', docs[0]._id)
                   self.$db.find({ uid: docs[0]._id, type: 'folder', parentId: 'null' }, function (err, docs1) {
                     if (!err) {
+                      self.loading = false
                       localStorage.setItem('curFolderId', docs1[0]._id)
                       localStorage.setItem('curFolderName', docs1[0].name)
                       localStorage.setItem('curParent', 'null')

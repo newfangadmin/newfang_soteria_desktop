@@ -19,18 +19,24 @@
         <transition-group name="fade-transform" mode="out-in">
           <el-col :xs="8" :sm="8" :md="6" :lg="4" :xl="4" v-for="(file, index) in files" :key="index" style="outline: none;" class="cardContainer">
             <el-card v-if="!file.fuploading" :body-style="{ padding: '0px' }" class="fileOptions" shadow="never">
-              <el-col :span="15" style="padding-top: 8px; text-align: left">{{ file.size | sizeFilter }} | {{ file.addDate | moment("Do MMM YY") }}</el-col>
-              <el-col :span="9"><el-button @click="handleDelete(file._id, file.name, file.size, file.uri, index)" class="secondaryBtn" style="padding: 0px; padding-top: 9px; font-size: 12px;" icon="el-icon-delete">Delete</el-button></el-col>
+              <!-- <el-col :span="6" style="padding-top: 8px; text-align: left">{{ file.size | sizeFilter }}</el-col> -->
+              <el-col :span="8"><el-button @click="handleGetDetails(file._id, file.name, file.size, file.uri, index)" class="secondaryBtn" style="padding: 0px; padding-top: 9px; font-size: 11px;" icon="el-icon-info">Details</el-button></el-col>
+              <el-col :span="8"><el-button @click="handleShare(file._id, file.name, file.size, file.uri, index)" class="secondaryBtn" style="padding: 0px; padding-top: 9px; font-size: 11px;" icon="el-icon-circle-plus">Share</el-button></el-col>
+              <el-col :span="8"><el-button @click="handleDelete(file._id, file.name, file.size, file.uri, index)" class="secondaryBtn" style="padding: 0px; padding-top: 9px; font-size: 11px;" icon="el-icon-error">Delete</el-button></el-col>
             </el-card>
             <el-card :body-style="{ padding: '0px' }" @click.native="handleFileDownload(file._id, file.name, file.size, file.uri, index)">
-              <el-col :span="5" class="iconContainer">
+              <el-col :span="4" class="iconContainer">
                 <span class='fiv-sqo image' :class="['fiv-icon-' + file.fileIconType]"></span>
               </el-col>
-              <el-col :span="19" class="fileNameContainer">
+              <el-col :span="20" class="fileNameContainer">
                 <transition name="fade-transform" mode="out-in">
                   <el-progress v-if="file.fuploading" class="uploadProgress" :percentage="upPercentage" :color="uploadColor"></el-progress>
                   <el-progress v-else-if="file.fdownloading" class="downloadProgress" :percentage="downPercentage" :color="uploadColor"></el-progress>
-                  <div v-else class="fileName">{{ file.name }}</div>
+                  <div v-else>
+                    <el-col :span="18" class="fileName">{{ file.name }}</el-col>
+                    <el-col :span="6" class="fileSize">{{ file.size | sizeFilter }}</el-col>
+                    <i class="el-icon-download downloadIcon"></i>
+                  </div>
                 </transition>
               </el-col>
             </el-card>
@@ -271,6 +277,29 @@ export default {
       }
     },
 
+    handleGetDetails (id, name, size, uri, index) {
+      if (!this.downloading && !this.uploading && !this.fworking) {
+        this.$root.$emit('showFileDetailsPane', {id, name, size, uri})
+      } else {
+        this.showMsgBox('error', 'Work in progress. Please wait.')
+      }
+    },
+
+    handleShare (id, name, size, uri, index) {
+      if (!this.downloading && !this.uploading && !this.fworking) {
+        this.$prompt('Please enter Ethereum Address of recipient', 'Give Access', {
+          confirmButtonText: 'Confirm',
+          cancelButtonText: 'Cancel',
+          inputPattern: /^(0x)?[0-9a-f]{40}$/,
+          inputErrorMessage: 'Invalid Ethereum Address'
+        }).then(({ value }) => {
+        }).catch(() => {
+        })
+      } else {
+        this.showMsgBox('error', 'Work in progress. Please wait.')
+      }
+    },
+
     handleDelete (id, name, size, uri, index) {
       if (!this.downloading && !this.uploading && !this.fworking) {
         this.$confirm('This will permanently delete the file. Continue?', 'Confirm', {
@@ -395,8 +424,8 @@ export default {
 .fileOptions {
   position: absolute;
   top: 5px;
-  left: 5.4%;
-  width: 88%;
+  left: 3.5%;
+  width: 92%;
   height: 30px;
   background-color:#e0e0e0;
   border: 1px solid #dddddd;
@@ -407,15 +436,32 @@ export default {
   padding: 0px !important;
   cursor:default;
   font-size: 11px;
-  text-align: left;
+  text-align: center;
   padding-top: 12px;
   color: #8b8b8b;
+}
+
+.downloadIcon {
+  display: none;
+  height: 40px;
+  line-height: 40px;
+  color: #00a8ff;
+  font-size: 18px;
+  transition: all 0.4s;
 }
 
 .cardContainer:hover .fileOptions {
   // display: block;
   // opacity: 1;
   transform: translateY(36px);
+}
+
+.cardContainer:hover .fileSize {
+  display: none;
+}
+
+.cardContainer:hover .downloadIcon {
+  display: block;
 }
 
 .image {
@@ -441,8 +487,15 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
+}
+
+.fileSize {
+  height: 40px;
+  line-height: 40px;
+  text-align: right;
+  font-size: 10px;
 }
 
 .fileName.grey {

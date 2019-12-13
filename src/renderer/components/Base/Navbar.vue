@@ -2,7 +2,7 @@
   <div class="navbar">
     <el-row :gutter="20">
       <el-col :span="2" class="logoContainer">
-        <img class="logo" src="~@/assets/logo.svg" />
+        <img class="logo" src="~@/assets/horizontal_white.png" />
       </el-col>
       <el-col :span="20" :offset="0">
         <el-row>
@@ -160,8 +160,8 @@ export default {
   .logo {
     display: inline-block;
     text-align: center;
-    height: 32px;
-    margin: 9px;
+    height: 24px;
+    margin: 12px;
     margin-left: 10px;
     color: #fff;
     font-weight: 600;
