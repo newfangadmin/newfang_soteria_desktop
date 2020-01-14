@@ -38,7 +38,7 @@
 </template>
 
 <script>
-const Uploader = require('../../../../node_modules/newfang/newfang_uploader').default
+const { Uploader } = require('newfang_node')
 
 export default {
   components: {

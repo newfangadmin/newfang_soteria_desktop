@@ -62,6 +62,7 @@
     "file-icon-vectors": "^1.0.0",
     "fs-extra": "^8.1.0",
     "nedb": "^1.8.0",
+    "newfang_node": "file:../newfang_node_sdk-daclTest",
     "random-name": "^0.1.2",
     "vue": "^2.5.16",
     "vue-avatar": "^2.1.7",

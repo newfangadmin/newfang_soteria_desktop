@@ -49,6 +49,7 @@ const fs = require('fs')
 const os = require('os')
 const storage = require('electron-json-storage')
 var random = require('random-name')
+const { Uploader } = require('newfang_node')
 
 export default {
   components: {
@@ -111,6 +112,7 @@ export default {
 
     generateKeystore (password) {
       let mnemonicWallet = ethers.Wallet.fromMnemonic(this.mne)
+      const wallet = new ethers.Wallet(mnemonicWallet.privateKey)
 
       let encryptPromise = mnemonicWallet.encrypt(password, (progress) => {
         console.log('Encrypting: ' + parseInt(progress * 100) + '% complete')
@@ -126,12 +128,13 @@ export default {
         a.dataset.downloadurl = ['text/json', a.download, a.href].join(':')
         e.initEvent('click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null)
         a.dispatchEvent(e)
-        self.addUser(password)
+        self.addUser(password, wallet)
       })
     },
 
-    addUser (pass) {
+    addUser (pass, wallet) {
       const self = this
+      const conv = Uploader.generate_convergence()
       var newUser = {
         firstName: random.first(),
         lastName: random.last(),
@@ -140,7 +143,9 @@ export default {
         storageCap: 1000000000,
         bandwidthCap: 1000000000,
         sUsage: 0,
-        bUsage: 0
+        bUsage: 0,
+        convergence: conv,
+        wallet: wallet
       }
       this.$udb.insert(newUser, function (err, newDoc) {
         if (!err) {

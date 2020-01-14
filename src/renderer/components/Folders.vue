@@ -41,7 +41,7 @@
 
 <script>
 import { dbFetch, dbInsert, dbRemove } from '../api/db'
-const Utils = require('../../../node_modules/newfang/newfang_utils').default
+const { Utils } = require('newfang_node')
 
 export default {
   components: {

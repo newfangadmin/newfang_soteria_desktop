@@ -21,7 +21,7 @@
             <el-card v-if="!file.fuploading" :body-style="{ padding: '0px' }" class="fileOptions" shadow="never">
               <!-- <el-col :span="6" style="padding-top: 8px; text-align: left">{{ file.size | sizeFilter }}</el-col> -->
               <el-col :span="8"><el-button @click="handleGetDetails(file._id, file.name, file.size, file.uri, index)" class="secondaryBtn" style="padding: 0px; padding-top: 9px; font-size: 11px;" icon="el-icon-info">Details</el-button></el-col>
-              <el-col :span="8"><el-button @click="handleShare(file._id, file.name, file.size, file.uri, index)" class="secondaryBtn" style="padding: 0px; padding-top: 9px; font-size: 11px;" icon="el-icon-circle-plus">Share</el-button></el-col>
+              <el-col :span="8"><el-button @click="handleShare(file._id, file.name, file.size, file.did, file.uri, index)" class="secondaryBtn" style="padding: 0px; padding-top: 9px; font-size: 11px;" icon="el-icon-circle-plus">Share</el-button></el-col>
               <el-col :span="8"><el-button @click="handleDelete(file._id, file.name, file.size, file.uri, index)" class="secondaryBtn" style="padding: 0px; padding-top: 9px; font-size: 11px;" icon="el-icon-error">Delete</el-button></el-col>
             </el-card>
             <el-card :body-style="{ padding: '0px' }" @click.native="handleFileDownload(file._id, file.name, file.size, file.uri, index)">
@@ -44,15 +44,29 @@
         </transition-group>
       </div>
     </el-row>
+    <el-dialog title="Share File" :visible.sync="shareDialogVisible">
+      <el-row>
+        <el-col :span="10" :offset="0">
+          <el-input type="text" v-model="nickInput" class="shareNick" placeholder="Recipient Nick Name" prefix-icon="el-icon-user" clearable></el-input>
+          <div class="inputErr">{{ nickErr }}</div>
+        </el-col>
+        <el-col :span="24" :offset="0">
+          <el-input type="text" v-model="pubKeyInput" class="sharePubKey" placeholder="Recipient Public Key" prefix-icon="el-icon-key" clearable @blur="validatePubKey()"></el-input>
+          <div class="inputErr">{{ pubKeyErr }}</div>
+        </el-col>
+      </el-row>
+      <el-row style="text-align: right;">
+        <el-button type="primary" class="shareBtn">Share</el-button>
+      </el-row>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import icons from '../assets/icons.json'
 import { dbFetch, dbInsert, dbRemove } from '../api/db'
-const Uploader = require('../../../node_modules/newfang/newfang_uploader').default
-const Downloader = require('../../../node_modules/newfang/newfang_downloader').default
-const Utils = require('../../../node_modules/newfang/newfang_utils').default
+const ethers = require('ethers')
+const { Uploader, Downloader, Utils } = require('newfang_node')
 const path = require('path')
 
 export default {
@@ -79,7 +93,14 @@ export default {
       userAPI: null,
       adminAPI: null,
       nodes: ['newfangnode1', 'newfangnode2', 'newfangnode3'],
-      fworking: false
+      fworking: false,
+      wallet: null,
+      didContract: null,
+      shareDialogVisible: false,
+      nickInput: '',
+      pubKeyInput: '',
+      nickErr: '',
+      pubKeyErr: ''
     }
   },
   filters: {
@@ -168,11 +189,29 @@ export default {
           }
 
           const convergence = localStorage.getItem('convergence')
-          const uploader = new Uploader({ filePath: file.path, convergence: convergence }, { pure: false })
+          // const uploader = new Uploader({ filePath: file.path, convergence: convergence }, { pure: false })
+          const wallet = this.wallet
+          const uploader = new Uploader({
+            filePath: file.path,
+            convergence: convergence
+          }, {
+            blockchain: {
+              provider: ethers,
+              wallet
+            }
+          })
           const uploadParams = uploader.get_encoding_params()
 
+          uploader.setIdentity(this.privateKey)
+
+          let fileURI = null
           uploader.on('upload_complete', (uri) => {
             console.log('upload complete: ', uri)
+            fileURI = uri
+          })
+
+          uploader.on('did_created', (did) => {
+            console.log('did generated: ', did)
             this.newFileName = file.name
             var newFile = {
               name: file.name,
@@ -181,7 +220,8 @@ export default {
               type: 'file',
               parentId: this.curFolder,
               size: file.size,
-              uri: uri,
+              uri: fileURI,
+              did: did,
               fileType: fileType,
               fileIconType: fileIconType,
               fuploading: false,
@@ -195,6 +235,7 @@ export default {
                 this.files[0]._id = res._id
                 this.files[0].size = res.size
                 this.files[0].uri = res.uri
+                this.files[0].did = res.did
                 this.files[0].addDate = res.addDate
                 this.uploadComplete = true
                 this.uploading = false
@@ -285,14 +326,37 @@ export default {
       }
     },
 
-    handleShare (id, name, size, uri, index) {
+    handleShare (id, name, size, did, uri, index) {
+      const encryptionKey = uri.split(':')[2]
+      console.log(encryptionKey)
+      // console.log(publicKey)
+      // console.log(this.privateKey)
       if (!this.downloading && !this.uploading && !this.fworking) {
-        this.$prompt('Please enter Ethereum Address of recipient', 'Give Access', {
+        // this.shareDialogVisible = true
+        this.$prompt('Please enter the Public Key of recipient', 'Give Access', {
           confirmButtonText: 'Confirm',
           cancelButtonText: 'Cancel',
-          inputPattern: /^(0x)?[0-9a-f]{40}$/,
-          inputErrorMessage: 'Invalid Ethereum Address'
+          inputPattern: /^[0-9a-f]{130}$/,
+          inputErrorMessage: 'Invalid Ethereum Public Key'
         }).then(({ value }) => {
+          this.loading = true
+          const wallet = this.wallet
+          const util = new Utils({ did, convergence: "asda" }, {
+            blockchain: {
+              provider: ethers,
+              wallet
+            }
+          })
+          util.setIdentity(this.privateKey)
+          util.on('response', (data) => {
+            console.log({ data })
+            this.loading = false
+            const self = this
+            this.$db.update({_id: id}, {$push: {pubKeys: value}}, {upsert: true}, function () {
+              self.showMsgBox('success', 'File shared with Public Key.')
+            })
+          })
+          util.share(value, encryptionKey)
         }).catch(() => {
         })
       } else {
@@ -357,10 +421,21 @@ export default {
         result += characters.charAt(Math.floor(Math.random() * charactersLength))
       }
       return result
+    },
+
+    validatePubKey () {
+      console.log('v', this.pubKeyInput)
     }
   },
-  mounted () {
+  async mounted () {
     this.uid = localStorage.getItem('uid')
+    const self = this
+    this.$udb.find({_id: self.uid}, function (err, docs) {
+      if (!err) {
+        self.privateKey = docs[0].wallet.signingKey.privateKey
+        self.wallet = new ethers.Wallet(self.privateKey)
+      }
+    })
     this.curFolder = this.$route.params.fid
     this.getFiles()
     this.$root.$on('fworking', () => {
@@ -369,6 +444,9 @@ export default {
     this.$root.$on('fidle', () => {
       this.fworking = false
     })
+
+    // let list = await this.didContract.accessSpecifier('0x33706c617735736e76337a6c6762356e616a7a6d68726d6f7065000000000000', ethers.utils.formatBytes32String('read'), '0xc0ffee254729296a45a3885639AC7E10F9d54979')
+    // console.log(list)
   }
 }
 </script>
@@ -516,5 +594,16 @@ export default {
   line-height: 36px;
   text-align: left;
   padding-left: 6px;
+}
+
+.shareNick, .sharePubKey, .shareBtn {
+  margin-top: 20px;
+}
+
+.inputErr {
+  color: rgb(211, 50, 50);
+  font-size: 10px;
+  font-weight: 600;
+  height: 12px;
 }
 </style>
